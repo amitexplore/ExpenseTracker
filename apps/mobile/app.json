@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "ExpenseTracker",
+    "slug": "expense-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#16a34a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.amitexplore.expensetracker",
+      "infoPlist": {
+        "NSUserNotificationUsageDescription": "We send notifications when new expenses are detected.",
+        "BGTaskSchedulerPermittedIdentifiers": ["com.amitexplore.expensetracker.gmailsync"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#16a34a"
+      },
+      "package": "com.amitexplore.expensetracker",
+      "permissions": ["RECEIVE_BOOT_COMPLETED"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-background-fetch",
+      ["expo-notifications", {
+        "icon": "./assets/notification-icon.png",
+        "color": "#16a34a"
+      }]
+    ],
+    "scheme": "expensetracker",
+    "extra": {
+      "eas": { "projectId": "your-eas-project-id" }
+    }
+  }
+}
