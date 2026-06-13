@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
+
+
 export default function SignupPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -13,28 +15,42 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState(false) // kept for compatibility
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-      },
+    // Create user via admin API (no email confirmation needed)
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, fullName }),
     })
+    const data = await res.json()
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setSuccess(true)
+    if (!res.ok) {
+      setError(data.error)
+      setLoading(false)
+      return
     }
-    setLoading(false)
+
+    // Immediately sign in
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError('Account created but sign-in failed: ' + signInError.message)
+      setLoading(false)
+      return
+    }
+    if (!signInData.session) {
+      setError('Account created but no session returned. Please go to Login page.')
+      setLoading(false)
+      return
+    }
+
+    // Hard navigation to ensure cookies are committed before dashboard loads
+    window.location.href = '/dashboard'
   }
 
   async function handleGoogleSignup() {

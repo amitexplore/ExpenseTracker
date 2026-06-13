@@ -21,7 +21,7 @@
   }
 
   * {
-    @apply border-border;
+    border-color: #e5e7eb;
   }
 
   body {

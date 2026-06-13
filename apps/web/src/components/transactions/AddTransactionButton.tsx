@@ -3,19 +3,18 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import { TransactionSchema } from '@tracker/core'
 
 interface AddTransactionButtonProps {
   categories: { id: string; name: string; color: string }[]
   userId: string
+  onAdded?: () => void
 }
 
-export default function AddTransactionButton({ categories, userId }: AddTransactionButtonProps) {
+export default function AddTransactionButton({ categories, userId, onAdded }: AddTransactionButtonProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
   const supabase = createClient()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -49,7 +48,7 @@ export default function AddTransactionButton({ categories, userId }: AddTransact
       setError(dbError.message)
     } else {
       setOpen(false)
-      router.refresh()
+      onAdded?.()
     }
     setLoading(false)
   }

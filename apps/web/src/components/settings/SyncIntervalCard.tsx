@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { SYNC_INTERVAL_OPTIONS } from '@tracker/core'
-import { useRouter } from 'next/navigation'
 import type { Profile } from '@tracker/db'
 
 interface SyncIntervalCardProps {
@@ -15,7 +14,6 @@ interface SyncIntervalCardProps {
 export default function SyncIntervalCard({ profile, userId }: SyncIntervalCardProps) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
 
   async function handleChange(value: number) {
@@ -27,7 +25,6 @@ export default function SyncIntervalCard({ profile, userId }: SyncIntervalCardPr
       .eq('id', userId)
     setSuccess(true)
     setLoading(false)
-    router.refresh()
     setTimeout(() => setSuccess(false), 2000)
   }
 

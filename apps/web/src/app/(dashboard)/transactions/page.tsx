@@ -1,78 +1,102 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase'
 import AddTransactionButton from '@/components/transactions/AddTransactionButton'
 import TransactionList from '@/components/transactions/TransactionList'
+import type { Transaction, ExpenseCategory } from '@tracker/db'
 
-export default async function TransactionsPage({
-  searchParams,
-}: {
-  searchParams: { q?: string; category?: string }
-}) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+type TransactionWithCategory = Transaction & {
+  expense_categories: { name: string; color: string; type: string; icon: string | null } | null
+}
 
-  let query = supabase
-    .from('transactions')
-    .select('*, expense_categories(name, color, type, icon)')
-    .eq('user_id', user.id)
-    .order('date', { ascending: false })
-    .limit(200)
+export default function TransactionsPage() {
+  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
+  const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([])
+  const [currency, setCurrency] = useState('INR')
+  const [userId, setUserId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
 
-  if (searchParams.q) {
-    query = query.or(`merchant.ilike.%${searchParams.q}%,description.ilike.%${searchParams.q}%`)
+  async function load(q = '', cat = '') {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    setUserId(user.id)
+
+    let query = supabase
+      .from('transactions')
+      .select('*, expense_categories(name, color, type, icon)')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false })
+      .limit(200)
+
+    if (q) query = query.or(`merchant.ilike.%${q}%,description.ilike.%${q}%`)
+    if (cat) query = query.eq('category_id', cat)
+
+    const [{ data: txs }, { data: cats }, { data: profile }] = await Promise.all([
+      query,
+      supabase.from('expense_categories').select('id, name, color').eq('user_id', user.id).order('sort_order'),
+      supabase.from('profiles').select('currency').eq('id', user.id).single(),
+    ])
+
+    setTransactions((txs ?? []) as TransactionWithCategory[])
+    setCategories(cats ?? [])
+    setCurrency(profile?.currency ?? 'INR')
+    setLoading(false)
   }
-  if (searchParams.category) {
-    query = query.eq('category_id', searchParams.category)
+
+  useEffect(() => { load() }, [])
+
+  function handleFilter(e: React.FormEvent) {
+    e.preventDefault()
+    load(search, categoryFilter)
   }
 
-  const [{ data: transactions }, { data: categories }, { data: profile }] = await Promise.all([
-    query,
-    supabase.from('expense_categories').select('id, name, color').eq('user_id', user.id).order('sort_order'),
-    supabase.from('profiles').select('currency').eq('id', user.id).single(),
-  ])
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-          <p className="text-sm text-gray-500 mt-1">{transactions?.length ?? 0} records</p>
+          <p className="text-sm text-gray-500 mt-1">{transactions.length} records</p>
         </div>
-        <AddTransactionButton categories={categories ?? []} userId={user.id} />
+        <AddTransactionButton categories={categories} userId={userId} onAdded={() => load(search, categoryFilter)} />
       </div>
 
-      {/* Search & filter */}
-      <form className="flex gap-3">
+      <form onSubmit={handleFilter} className="flex gap-3">
         <input
-          name="q"
-          defaultValue={searchParams.q}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search merchant, description..."
           className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
         />
         <select
-          name="category"
-          defaultValue={searchParams.category}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
           className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">All categories</option>
-          {(categories ?? []).map((c) => (
+          {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <button
-          type="submit"
-          className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition-colors"
-        >
+        <button type="submit" className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition-colors">
           Filter
         </button>
       </form>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
-        <TransactionList
-          transactions={(transactions ?? []) as any}
-          currency={profile?.currency ?? 'INR'}
-        />
+        <TransactionList transactions={transactions} currency={currency} />
       </div>
     </div>
   )

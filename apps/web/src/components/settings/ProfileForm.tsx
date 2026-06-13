@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import type { Profile } from '@tracker/db'
 import { CURRENCY_OPTIONS } from '@tracker/core'
 import { DollarSign, Target } from 'lucide-react'
@@ -13,7 +12,6 @@ interface ProfileFormProps {
 }
 
 export default function ProfileForm({ profile, userId }: ProfileFormProps) {
-  const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -42,7 +40,6 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
       setError(dbError.message)
     } else {
       setSuccess(true)
-      router.refresh()
     }
     setLoading(false)
   }

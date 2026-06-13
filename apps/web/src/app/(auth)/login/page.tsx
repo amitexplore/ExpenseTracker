@@ -18,11 +18,13 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError(error.message)
+    } else if (!data.session) {
+      setError('Sign-in succeeded but no session. Please try again.')
     } else {
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     }
     setLoading(false)
   }
@@ -32,7 +34,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${window.location.origin}/confirm`,
         scopes: 'https://www.googleapis.com/auth/gmail.readonly',
       },
     })

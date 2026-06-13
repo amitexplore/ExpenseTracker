@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Home } from 'lucide-react'
 import { formatINR } from '@tracker/core'
 import type { FixedExpense } from '@tracker/db'
@@ -15,15 +14,15 @@ interface FixedExpensesManagerProps {
   fixedExpenses: FixedExpenseWithCategory[]
   categories: { id: string; name: string; color: string; type: string }[]
   userId: string
+  onChanged?: () => void
 }
 
 export default function FixedExpensesManager({
-  fixedExpenses, categories, userId,
+  fixedExpenses, categories, userId, onChanged,
 }: FixedExpensesManagerProps) {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
   const supabase = createClient()
 
   const fixedCategories = categories.filter((c) => c.type === 'fixed' || c.type === 'savings')
@@ -48,14 +47,14 @@ export default function FixedExpensesManager({
       setError(dbError.message)
     } else {
       setShowForm(false)
-      router.refresh()
+      onChanged?.()
     }
     setLoading(false)
   }
 
   async function handleDelete(id: string) {
     await supabase.from('fixed_expenses').delete().eq('id', id)
-    router.refresh()
+    onChanged?.()
   }
 
   return (
