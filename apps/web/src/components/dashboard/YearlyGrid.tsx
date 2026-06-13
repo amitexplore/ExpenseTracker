@@ -32,7 +32,7 @@ export default function YearlyGrid({ snapshots, year, salary, currency }: Yearly
   const ROWS = [
     { label: 'Starting Balance', key: 'starting', highlight: false },
     { label: 'Salary', key: 'salary', highlight: false },
-    { label: 'Deposits', key: 'deposits', highlight: true },
+    { label: 'Bonus / Other Income', key: 'deposits', highlight: true },
     { label: 'Fixed Expenses', key: 'fixed', highlight: false },
     { label: 'Variable Expenses', key: 'variable', highlight: false },
     { label: 'End Balance', key: 'end', highlight: false, bold: true },

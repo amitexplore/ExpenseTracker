@@ -7,13 +7,14 @@ import SavingsProgressCard from '@/components/dashboard/SavingsProgressCard'
 import MonthlyTrendChart from '@/components/dashboard/MonthlyTrendChart'
 import AddBonusButton from '@/components/dashboard/AddBonusButton'
 import { computeSavingsProgress, calcAvgMonthlySavings, getCumulativeSavings } from '@tracker/core'
-import type { MonthlySnapshot, Profile } from '@tracker/db'
+import type { MonthlySnapshot, Profile, FixedExpense } from '@tracker/db'
 
 export default function DashboardPage() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [userId, setUserId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allSnapshots, setAllSnapshots] = useState<MonthlySnapshot[]>([])
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([])
   const [loading, setLoading] = useState(true)
 
   async function load() {
@@ -22,27 +23,38 @@ export default function DashboardPage() {
     if (!user) return
 
     setUserId(user.id)
-    const [{ data: p }, { data: s }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: fe }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('monthly_snapshots').select('*').eq('user_id', user.id)
         .order('year', { ascending: false }).order('month', { ascending: true }),
+      supabase.from('fixed_expenses').select('*').eq('user_id', user.id).eq('active_to', null as unknown as string),
     ])
     setProfile(p)
     setAllSnapshots(s ?? [])
+    setFixedExpenses(fe ?? [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   const existingSavings = profile?.current_savings ?? 0
+  const salary = profile?.monthly_salary ?? 0
+  const totalMonthlyFixed = fixedExpenses.reduce((sum, fe) => {
+    return sum + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0)
+  }, 0)
+
   const yearSnapshots = allSnapshots.filter((s) => s.year === year)
   const trackedSavings = getCumulativeSavings(allSnapshots, existingSavings)
   const avgMonthlySavings = calcAvgMonthlySavings(allSnapshots)
+  // Use salary − fixed as a fallback estimate when there's no transaction history yet
+  const effectiveMonthlySavings = avgMonthlySavings > 0
+    ? avgMonthlySavings
+    : Math.max(0, salary - totalMonthlyFixed)
   const savingsProgress = computeSavingsProgress(
     profile?.target_amount ?? 0,
     profile?.target_date ?? null,
     trackedSavings,
-    avgMonthlySavings,
+    effectiveMonthlySavings,
   )
   const availableYears = [...new Set(allSnapshots.map((s) => s.year))].sort((a, b) => b - a)
   if (availableYears.length === 0) availableYears.push(new Date().getFullYear())

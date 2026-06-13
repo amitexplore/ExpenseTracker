@@ -96,7 +96,11 @@ export default function TransactionsPage() {
       </form>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
-        <TransactionList transactions={transactions} currency={currency} />
+        <TransactionList
+          transactions={transactions}
+          currency={currency}
+          onChanged={() => load(search, categoryFilter)}
+        />
       </div>
     </div>
   )

@@ -18,6 +18,7 @@ export default function MonthlyTrendChart({ snapshots, year }: MonthlyTrendChart
     return {
       month: MONTH_SHORT[i],
       salary: snap?.salary ?? 0,
+      bonus: snap?.total_deposits ?? 0,
       fixed: snap?.total_fixed_expenses ?? 0,
       variable: snap?.total_variable_expenses ?? 0,
       balance: snap?.end_balance ?? null,
@@ -39,11 +40,15 @@ export default function MonthlyTrendChart({ snapshots, year }: MonthlyTrendChart
             tickLine={false}
           />
           <Tooltip
-            formatter={(value: number) => formatINR(value)}
+            formatter={(value: number, name: string) => {
+              if (name === 'Bonus / Deposits' && value === 0) return [null, null]
+              return [formatINR(value), name]
+            }}
             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07)' }}
           />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
           <Bar dataKey="salary" name="Salary" fill="#bbf7d0" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="bonus" name="Bonus / Deposits" fill="#fde68a" radius={[4, 4, 0, 0]} />
           <Bar dataKey="fixed" name="Fixed Expenses" fill="#fca5a5" radius={[4, 4, 0, 0]} />
           <Bar dataKey="variable" name="Variable Expenses" fill="#fdba74" radius={[4, 4, 0, 0]} />
           <Line
