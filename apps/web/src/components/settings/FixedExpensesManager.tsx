@@ -138,12 +138,21 @@ export default function FixedExpensesManager({
               <select
                 name="category_id"
                 required
+                defaultValue=""
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
+                <option value="" disabled>
+                  {fixedCategories.length === 0 ? 'No categories — reload page' : 'Select category…'}
+                </option>
                 {fixedCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+              {fixedCategories.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">
+                  Categories not loaded yet. Try refreshing the page.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
