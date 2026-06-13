@@ -4,7 +4,8 @@ import { parseMultipleEmails, deduplicateTransactions } from '@tracker/core'
 import type { RawEmail } from '@tracker/core'
 
 export async function POST() {
-  const supabase = createServerSupabaseClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createServerSupabaseClient() as any
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -54,7 +55,7 @@ export async function POST() {
       .eq('user_id', user.id)
       .not('raw_email_id', 'is', null)
 
-    const existingIds = new Set((existingTxs ?? []).map((t) => t.raw_email_id!))
+    const existingIds = new Set<string>((existingTxs ?? []).map((t: { raw_email_id: string | null }) => t.raw_email_id ?? ''))
 
     // Parse and deduplicate
     const parsed = parseMultipleEmails(emails)
@@ -67,7 +68,7 @@ export async function POST() {
         .select('id, name')
         .eq('user_id', user.id)
 
-      const categoryMap = new Map((categories ?? []).map((c) => [c.name.toLowerCase(), c.id]))
+      const categoryMap = new Map((categories ?? []).map((c: { name: string; id: string }) => [c.name.toLowerCase(), c.id]))
 
       const inserts = newTxs.map((tx) => ({
         user_id: user.id,

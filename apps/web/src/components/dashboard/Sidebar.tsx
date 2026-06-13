@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, List, Settings, LogOut, TrendingUp } from 'lucide-react'
@@ -19,7 +21,7 @@ const NAV_ITEMS = [
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
-export default function Sidebar({ user, profile }: SidebarProps) {
+export default function Sidebar({ user, profile }: SidebarProps): React.JSX.Element {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()

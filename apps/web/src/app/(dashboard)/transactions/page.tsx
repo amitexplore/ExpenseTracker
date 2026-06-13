@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import AddTransactionButton from '@/components/transactions/AddTransactionButton'
@@ -10,7 +12,7 @@ type TransactionWithCategory = Transaction & {
   expense_categories: { name: string; color: string; type: string; icon: string | null } | null
 }
 
-export default function TransactionsPage() {
+export default function TransactionsPage(): React.JSX.Element {
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([])
   const [currency, setCurrency] = useState('INR')
@@ -44,7 +46,7 @@ export default function TransactionsPage() {
 
     setTransactions((txs ?? []) as TransactionWithCategory[])
     setCategories(cats ?? [])
-    setCurrency(profile?.currency ?? 'INR')
+    setCurrency((profile as { currency?: string } | null)?.currency ?? 'INR')
     setLoading(false)
   }
 

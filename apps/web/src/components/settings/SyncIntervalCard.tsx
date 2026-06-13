@@ -1,8 +1,10 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
 import { Clock } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 import { SYNC_INTERVAL_OPTIONS } from '@tracker/core'
 import type { Profile } from '@tracker/db'
 
@@ -11,10 +13,10 @@ interface SyncIntervalCardProps {
   userId: string
 }
 
-export default function SyncIntervalCard({ profile, userId }: SyncIntervalCardProps) {
+export default function SyncIntervalCard({ profile, userId }: SyncIntervalCardProps): React.JSX.Element {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const supabase = createClient()
+  const supabase = createWriteClient()
 
   async function handleChange(value: number) {
     setLoading(true)

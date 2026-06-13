@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
-export default function ConfirmPage() {
+function ConfirmContent(): React.JSX.Element {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'error'>('loading')
@@ -57,5 +57,18 @@ export default function ConfirmPage() {
       <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
       <p className="text-gray-600 text-sm">Confirming your account...</p>
     </div>
+  )
+}
+
+export default function ConfirmPage(): React.JSX.Element {
+  return (
+    <Suspense fallback={
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
+        <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 text-sm">Loading...</p>
+      </div>
+    }>
+      <ConfirmContent />
+    </Suspense>
   )
 }

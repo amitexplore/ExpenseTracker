@@ -1,4 +1,6 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import React from 'react'
+
+export default function AuthLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">

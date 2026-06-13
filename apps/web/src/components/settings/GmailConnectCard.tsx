@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { Mail, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatDistanceToNow } from 'date-fns'
@@ -15,7 +17,7 @@ interface GmailConnectCardProps {
   connection: GmailConnection | null
 }
 
-export default function GmailConnectCard({ connection }: GmailConnectCardProps) {
+export default function GmailConnectCard({ connection }: GmailConnectCardProps): React.JSX.Element {
   async function handleConnect() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({

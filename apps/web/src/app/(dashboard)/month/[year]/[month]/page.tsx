@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, MONTH_NAMES } from '@tracker/core'
@@ -12,15 +14,17 @@ type TransactionWithCategory = Transaction & {
   expense_categories: { name: string; color: string; type: string; icon: string | null } | null
 }
 
-export default function MonthPage({ params }: { params: { year: string; month: string } }) {
+export default function MonthPage({ params }: { params: { year: string; month: string } }): React.JSX.Element {
   const year = parseInt(params.year)
   const month = parseInt(params.month)
 
   const [snapshot, setSnapshot] = useState<MonthlySnapshot | null>(null)
+  const [priorEndBalance, setPriorEndBalance] = useState<number | null>(null)
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([])
   const [currency, setCurrency] = useState('INR')
   const [salary, setSalary] = useState(0)
+  const [currentSavings, setCurrentSavings] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,20 +37,29 @@ export default function MonthPage({ params }: { params: { year: string; month: s
       const lastDay = new Date(year, month, 0).getDate()
       const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
-      const [{ data: snap }, { data: txs }, { data: profile }, { data: fe }] = await Promise.all([
-        supabase.from('monthly_snapshots').select('*').eq('user_id', user.id).eq('year', year).eq('month', month).single(),
+      const [{ data: snap }, { data: txs }, { data: profile }, { data: fe }, { data: priorSnap }] = await Promise.all([
+        supabase.from('monthly_snapshots').select('*').eq('user_id', user.id).eq('year', year).eq('month', month).maybeSingle(),
         supabase.from('transactions').select('*, expense_categories(name, color, type, icon)')
           .eq('user_id', user.id).gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
-        supabase.from('profiles').select('currency, monthly_salary').eq('id', user.id).single(),
-        supabase.from('fixed_expenses').select('*').eq('user_id', user.id)
-          .or('active_to.is.null,active_to.gte.' + startDate),
+        supabase.from('profiles').select('currency, monthly_salary, current_savings').eq('id', user.id).single(),
+        // Fetch all fixed expenses for accurate per-month filtering
+        supabase.from('fixed_expenses').select('*').eq('user_id', user.id),
+        // Most-recent prior snapshot for starting balance chain
+        // Prior snapshot: year < target year, OR same year with month < target month
+        supabase.from('monthly_snapshots').select('end_balance').eq('user_id', user.id)
+          .or(`year.lt.${year},and(year.eq.${year},month.lt.${month})`)
+          .order('year', { ascending: false }).order('month', { ascending: false }).limit(1).maybeSingle(),
       ])
 
       setSnapshot(snap)
       setTransactions((txs ?? []) as TransactionWithCategory[])
-      setCurrency(profile?.currency ?? 'INR')
-      setSalary(profile?.monthly_salary ?? 0)
+      const p = profile as { currency?: string; monthly_salary?: number; current_savings?: number } | null
+      setCurrency(p?.currency ?? 'INR')
+      setSalary(p?.monthly_salary ?? 0)
+      setCurrentSavings(p?.current_savings ?? 0)
       setFixedExpenses(fe ?? [])
+      const prior = priorSnap as { end_balance?: number } | null
+      setPriorEndBalance(prior?.end_balance ?? null)
       setLoading(false)
     }
     load()
@@ -64,8 +77,17 @@ export default function MonthPage({ params }: { params: { year: string; month: s
       const to = fe.active_to ? new Date(fe.active_to) : null
       return monthDate >= from && (to === null || monthDate <= to)
     })
-    .reduce((s, fe) => s + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0), 0)
+    .reduce((s, fe) => {
+      if (fe.frequency === 'monthly') return s + fe.amount
+      if (fe.frequency === 'yearly') return s + fe.amount / 12
+      if (fe.frequency === 'one_time') {
+        const from = new Date(fe.active_from)
+        if (from.getFullYear() === year && from.getMonth() + 1 === month) return s + fe.amount
+      }
+      return s
+    }, 0)
 
+  const starting = priorEndBalance ?? currentSavings
   const display = snapshot
     ? {
         starting: snapshot.starting_balance,
@@ -76,12 +98,12 @@ export default function MonthPage({ params }: { params: { year: string; month: s
         end: snapshot.end_balance,
       }
     : {
-        starting: 0,
+        starting,
         salary,
         deposits: income,
         fixed,
         variable,
-        end: salary + income - fixed - variable,
+        end: starting + salary + income - fixed - variable,
       }
 
   if (loading) {

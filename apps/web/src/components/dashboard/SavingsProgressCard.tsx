@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { formatCurrency } from '@tracker/core'
 import type { SavingsProgress } from '@tracker/core'
 import { format } from 'date-fns'
@@ -12,7 +14,7 @@ interface SavingsProgressCardProps {
   targetDate?: string | null
 }
 
-export default function SavingsProgressCard({ progress, currency, currentSavings = 0, targetDate }: SavingsProgressCardProps) {
+export default function SavingsProgressCard({ progress, currency, currentSavings = 0, targetDate }: SavingsProgressCardProps): React.JSX.Element {
   const { targetAmount, actualAmount, difference, percentageAchieved, monthsRemaining, projectedDate, onTrack } = progress
   // actualAmount = end_balance, which already starts from currentSavings as base —
   // use it directly as total wealth; never add currentSavings again

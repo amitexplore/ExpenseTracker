@@ -31,8 +31,32 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['profiles']['Insert']>
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          avatar_url?: string | null
+          monthly_salary?: number
+          current_savings?: number
+          target_amount?: number
+          target_date?: string | null
+          currency?: string
+          sync_interval_minutes?: number
+          subscription_tier?: SubscriptionTier
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          monthly_salary?: number
+          current_savings?: number
+          target_amount?: number
+          target_date?: string | null
+          currency?: string
+          sync_interval_minutes?: number
+          subscription_tier?: SubscriptionTier
+        }
       }
       expense_categories: {
         Row: {
@@ -46,8 +70,26 @@ export interface Database {
           sort_order: number
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['expense_categories']['Row'], 'created_at'>
-        Update: Partial<Database['public']['Tables']['expense_categories']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          type: CategoryType
+          color: string
+          icon?: string | null
+          is_system?: boolean
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          type?: CategoryType
+          color?: string
+          icon?: string | null
+          is_system?: boolean
+          sort_order?: number
+        }
       }
       fixed_expenses: {
         Row: {
@@ -62,8 +104,26 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['fixed_expenses']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['fixed_expenses']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          category_id: string
+          name: string
+          amount: number
+          frequency: ExpenseFrequency
+          active_from: string
+          active_to?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category_id?: string
+          name?: string
+          amount?: number
+          frequency?: ExpenseFrequency
+          active_from?: string
+          active_to?: string | null
+        }
       }
       transactions: {
         Row: {
@@ -80,8 +140,30 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['transactions']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['transactions']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          category_id?: string | null
+          amount: number
+          date: string
+          merchant?: string | null
+          description?: string | null
+          source: TransactionSource
+          raw_email_id?: string | null
+          is_income?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category_id?: string | null
+          amount?: number
+          date?: string
+          merchant?: string | null
+          description?: string | null
+          source?: TransactionSource
+          raw_email_id?: string | null
+          is_income?: boolean
+        }
       }
       gmail_connections: {
         Row: {
@@ -98,8 +180,30 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['gmail_connections']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['gmail_connections']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          gmail_address: string
+          access_token: string
+          refresh_token: string
+          token_expiry: string
+          last_synced_at?: string | null
+          sync_status?: SyncStatus
+          error_message?: string | null
+          enabled?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          gmail_address?: string
+          access_token?: string
+          refresh_token?: string
+          token_expiry?: string
+          last_synced_at?: string | null
+          sync_status?: SyncStatus
+          error_message?: string | null
+          enabled?: boolean
+        }
       }
       monthly_snapshots: {
         Row: {
@@ -115,8 +219,32 @@ export interface Database {
           end_balance: number
           computed_at: string
         }
-        Insert: Omit<Database['public']['Tables']['monthly_snapshots']['Row'], 'computed_at'>
-        Update: Partial<Database['public']['Tables']['monthly_snapshots']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          year: number
+          month: number
+          starting_balance: number
+          salary: number
+          total_deposits: number
+          total_fixed_expenses: number
+          total_variable_expenses: number
+          end_balance: number
+          computed_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          year?: number
+          month?: number
+          starting_balance?: number
+          salary?: number
+          total_deposits?: number
+          total_fixed_expenses?: number
+          total_variable_expenses?: number
+          end_balance?: number
+          computed_at?: string
+        }
       }
     }
     Views: Record<string, never>

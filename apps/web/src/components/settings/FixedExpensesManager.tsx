@@ -1,7 +1,9 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient, createWriteClient } from '@/lib/supabase'
 import { Plus, Trash2, Home } from 'lucide-react'
 import { formatINR } from '@tracker/core'
 import type { FixedExpense } from '@tracker/db'
@@ -23,7 +25,7 @@ export default function FixedExpensesManager({
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = createWriteClient()
 
   const fixedCategories = categories.filter((c) => c.type === 'fixed' || c.type === 'savings')
 

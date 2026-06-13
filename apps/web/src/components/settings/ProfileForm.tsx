@@ -1,7 +1,9 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 import type { Profile } from '@tracker/db'
 import { CURRENCY_OPTIONS } from '@tracker/core'
 import { DollarSign, Target } from 'lucide-react'
@@ -9,10 +11,11 @@ import { DollarSign, Target } from 'lucide-react'
 interface ProfileFormProps {
   profile: Profile | null
   userId: string
+  onChanged?: () => void
 }
 
-export default function ProfileForm({ profile, userId }: ProfileFormProps) {
-  const supabase = createClient()
+export default function ProfileForm({ profile, userId, onChanged }: ProfileFormProps): React.JSX.Element {
+  const supabase = createWriteClient()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +44,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
       setError(dbError.message)
     } else {
       setSuccess(true)
+      onChanged?.()
     }
     setLoading(false)
   }

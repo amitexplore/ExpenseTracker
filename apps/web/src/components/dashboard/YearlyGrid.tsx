@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import Link from 'next/link'
 import { formatCurrency } from '@tracker/core'
 import { cn } from '@/lib/utils'
@@ -11,7 +13,7 @@ interface YearlyGridProps {
   currency: string
 }
 
-export default function YearlyGrid({ monthData, year, currency }: YearlyGridProps) {
+export default function YearlyGrid({ monthData, year, currency }: YearlyGridProps): React.JSX.Element {
   const fmt = (v: number | null) => v !== null ? formatCurrency(v, currency) : '—'
 
   const ROWS: { label: string; key: keyof MonthData; cls?: string; bold?: boolean }[] = [

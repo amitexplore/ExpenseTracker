@@ -1,8 +1,10 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 import { TransactionSchema } from '@tracker/core'
 
 interface AddTransactionButtonProps {
@@ -11,11 +13,11 @@ interface AddTransactionButtonProps {
   onAdded?: () => void
 }
 
-export default function AddTransactionButton({ categories, userId, onAdded }: AddTransactionButtonProps) {
+export default function AddTransactionButton({ categories, userId, onAdded }: AddTransactionButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = createWriteClient()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

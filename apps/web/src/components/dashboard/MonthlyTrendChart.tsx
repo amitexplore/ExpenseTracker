@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -12,7 +14,7 @@ interface MonthlyTrendChartProps {
   year: number
 }
 
-export default function MonthlyTrendChart({ monthData, year }: MonthlyTrendChartProps) {
+export default function MonthlyTrendChart({ monthData, year }: MonthlyTrendChartProps): React.JSX.Element {
   const data = monthData.map((m) => ({
     month: m.label,
     salary: m.salary,

@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -7,7 +9,7 @@ import { createClient } from '@/lib/supabase'
 
 
 
-export default function SignupPage() {
+export default function SignupPage(): React.JSX.Element {
   const router = useRouter()
   const supabase = createClient()
   const [email, setEmail] = useState('')

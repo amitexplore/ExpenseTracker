@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import ProfileForm from '@/components/settings/ProfileForm'
@@ -19,7 +21,7 @@ type GmailConn = {
   enabled: boolean
 } | null
 
-export default function SettingsPage() {
+export default function SettingsPage(): React.JSX.Element {
   const [userId, setUserId] = useState('')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpenseWithCategory[]>([])
@@ -37,7 +39,7 @@ export default function SettingsPage() {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('fixed_expenses').select('*, expense_categories(name, color)').eq('user_id', user.id).order('created_at'),
       supabase.from('expense_categories').select('id, name, color, type').eq('user_id', user.id).order('sort_order'),
-      supabase.from('gmail_connections').select('gmail_address, sync_status, last_synced_at, enabled').eq('user_id', user.id).single(),
+      supabase.from('gmail_connections').select('gmail_address, sync_status, last_synced_at, enabled').eq('user_id', user.id).maybeSingle(),
     ])
 
     setProfile(p)
@@ -63,7 +65,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage your profile, income, and expenses</p>
       </div>
-      <ProfileForm profile={profile} userId={userId} />
+      <ProfileForm profile={profile} userId={userId} onChanged={load} />
       <FixedExpensesManager fixedExpenses={fixedExpenses} categories={categories} userId={userId} onChanged={load} />
       <GmailConnectCard connection={gmailConnection} />
       <SyncIntervalCard profile={profile} userId={userId} />

@@ -1,10 +1,12 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
 import { formatCurrency } from '@tracker/core'
 import { format } from 'date-fns'
 import { Mail, PenLine, Smartphone, Pencil, Trash2, X, Check } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 import type { Transaction } from '@tracker/db'
 
 type TransactionWithCategory = Transaction & {
@@ -43,7 +45,7 @@ function EditInlineForm({
   async function save() {
     if (!amount || parseFloat(amount) <= 0) { setError('Invalid amount'); return }
     setSaving(true)
-    const supabase = createClient()
+    const supabase = createWriteClient()
     const { error: dbError } = await supabase
       .from('transactions')
       .update({ amount: parseFloat(amount), description, date })
@@ -100,13 +102,13 @@ function EditInlineForm({
   )
 }
 
-export default function TransactionList({ transactions, currency, onChanged }: TransactionListProps) {
+export default function TransactionList({ transactions, currency, onChanged }: TransactionListProps): React.JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function handleDelete(tx: TransactionWithCategory) {
     setDeletingId(tx.id)
-    const supabase = createClient()
+    const supabase = createWriteClient()
     await supabase.from('transactions').delete().eq('id', tx.id)
     // Snapshot recomputed automatically by DB trigger
     setDeletingId(null)
@@ -126,7 +128,8 @@ export default function TransactionList({ transactions, currency, onChanged }: T
       {transactions.map((tx) => {
         const SourceIcon = SOURCE_ICONS[tx.source as keyof typeof SOURCE_ICONS] ?? PenLine
         const catColor = tx.expense_categories?.color ?? '#94a3b8'
-        const isBonus = tx.is_income === true
+        // Allow edit/delete for manually entered transactions (not read-only gmail imports)
+        const isEditable = tx.source === 'manual'
         const isEditing = editingId === tx.id
         const isConfirmingDelete = deletingId === tx.id + '_confirm'
 
@@ -169,8 +172,8 @@ export default function TransactionList({ transactions, currency, onChanged }: T
 
                 {/* Amount + actions */}
                 <div className="flex items-center gap-2">
-                  {/* Edit/Delete shown for bonus/income transactions; visible on hover for all */}
-                  {isBonus && (
+                  {/* Edit/Delete shown for all manually entered transactions */}
+                  {isEditable && (
                     <div className="hidden group-hover:flex items-center gap-1">
                       {isConfirmingDelete ? (
                         <>

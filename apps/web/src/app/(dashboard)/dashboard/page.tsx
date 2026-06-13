@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import YearlyGrid from '@/components/dashboard/YearlyGrid'
@@ -48,7 +50,15 @@ function buildMonthData(
         return monthDate >= from && (to === null || monthDate <= to)
       })
       .reduce((s, fe) => {
-        return s + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0)
+        if (fe.frequency === 'monthly') return s + fe.amount
+        if (fe.frequency === 'yearly') return s + fe.amount / 12
+        if (fe.frequency === 'one_time') {
+          // One-time: apply full amount only in the month of active_from
+          const from = new Date(fe.active_from)
+          if (from.getFullYear() === year && from.getMonth() + 1 === month) return s + fe.amount
+          return s
+        }
+        return s
       }, 0)
 
     // --- Future month: only show upcoming fixed obligations, no salary projection ---
@@ -83,7 +93,11 @@ function buildMonthData(
       return d.getFullYear() === year && d.getMonth() + 1 === month
     })
 
-    const deposits = monthTx.filter((t) => t.is_income).reduce((s, t) => s + t.amount, 0)
+    // Exclude Salary-category income (double-counted with profile salary)
+    const deposits = monthTx
+      .filter((t) => t.is_income)
+      .reduce((s, t) => s + t.amount, 0)
+    // All non-income transactions count as variable outflows
     const variable = monthTx.filter((t) => !t.is_income).reduce((s, t) => s + t.amount, 0)
     const hasAnyData = deposits > 0 || variable > 0 || fixed > 0
 
@@ -99,7 +113,7 @@ function buildMonthData(
   })
 }
 
-export default function DashboardPage() {
+export default function DashboardPage(): React.JSX.Element {
   const [year, setYear] = useState(new Date().getFullYear())
   const [userId, setUserId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -119,9 +133,8 @@ export default function DashboardPage() {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('monthly_snapshots').select('*').eq('user_id', user.id)
         .order('year').order('month'),
-      // Active fixed expenses: no end date OR end date in the future
-      supabase.from('fixed_expenses').select('*').eq('user_id', user.id)
-        .or('active_to.is.null,active_to.gte.' + new Date().toISOString().split('T')[0]),
+      // Fetch ALL fixed expenses so historical months compute correctly
+      supabase.from('fixed_expenses').select('*').eq('user_id', user.id),
       // All transactions for the selected year (fetched fresh each year change)
       supabase.from('transactions').select('*').eq('user_id', user.id)
         .gte('date', `${year}-01-01`).lte('date', `${year}-12-31`),
@@ -140,11 +153,9 @@ export default function DashboardPage() {
   const salary = profile?.monthly_salary ?? 0
 
   const yearSnapshots = snapshots.filter((s) => s.year === year)
-  const allYearSnapshots = snapshots  // all years for savings progress
-
   const monthData = buildMonthData(year, yearSnapshots, transactions, fixedExpenses, salary, existingSavings)
 
-  // Only use snapshots for months that have actually passed (no future projections)
+  // Only use confirmed (past + current) snapshots — never project future months
   const now = new Date()
   const confirmedSnaps = snapshots.filter((s) =>
     s.year < now.getFullYear() ||
@@ -154,13 +165,19 @@ export default function DashboardPage() {
     a.year !== b.year ? a.year - b.year : a.month - b.month
   )
   const latestSnap = sortedConfirmed[sortedConfirmed.length - 1]
-  // end_balance already starts from current_savings — use it as the total wealth figure
+  // end_balance already starts from current_savings — use as total wealth
   const trackedSavings = latestSnap ? latestSnap.end_balance : existingSavings
 
   const avgMonthlySavings = calcAvgMonthlySavings(confirmedSnaps)
-  const totalMonthlyFixed = fixedExpenses.reduce((sum, fe) => {
-    return sum + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0)
-  }, 0)
+  // Fallback estimate: salary minus currently-active fixed obligations this month
+  const nowMonthDate = new Date(now.getFullYear(), now.getMonth(), 1)
+  const totalMonthlyFixed = fixedExpenses
+    .filter((fe) => {
+      const from = new Date(fe.active_from)
+      const to = fe.active_to ? new Date(fe.active_to) : null
+      return nowMonthDate >= from && (to === null || nowMonthDate <= to)
+    })
+    .reduce((sum, fe) => sum + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0), 0)
   const effectiveMonthlySavings = avgMonthlySavings > 0
     ? avgMonthlySavings
     : Math.max(0, salary - totalMonthlyFixed)

@@ -1,15 +1,17 @@
 'use client'
 
+import React from 'react'
+
 import { useState } from 'react'
 import { Gift, X } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 
 interface AddBonusButtonProps {
   userId: string
   onAdded: () => void
 }
 
-export default function AddBonusButton({ userId, onAdded }: AddBonusButtonProps) {
+export default function AddBonusButton({ userId, onAdded }: AddBonusButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
@@ -26,7 +28,7 @@ export default function AddBonusButton({ userId, onAdded }: AddBonusButtonProps)
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
+                const supabase = createWriteClient()
 
     // Find the Bonus category
     const { data: categories } = await supabase

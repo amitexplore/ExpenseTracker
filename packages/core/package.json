@@ -9,6 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@tracker/db": "workspace:*",
     "date-fns": "^3.6.0",
     "zod": "^3.23.8"
   },

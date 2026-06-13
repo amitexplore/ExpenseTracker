@@ -38,15 +38,16 @@ export async function GET(request: NextRequest) {
     })
     const profileData = await profileRes.json()
 
-    await supabase.from('gmail_connections').upsert({
+    await (supabase as any).from('gmail_connections').upsert({
       user_id: user.id,
       gmail_address: profileData.email,
       access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      // Only update refresh_token when Google provides one (not provided on re-auth without prompt=consent)
+      ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
       token_expiry: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       enabled: true,
       sync_status: 'idle',
-    }, { onConflict: 'user_id,gmail_address' })
+    }, { onConflict: 'user_id' })
 
     return NextResponse.redirect(`${origin}/settings?gmail=connected`)
   } catch {
