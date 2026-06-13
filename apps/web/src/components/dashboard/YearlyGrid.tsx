@@ -10,19 +10,22 @@ interface YearlyGridProps {
   year: number
   salary: number
   currency: string
+  bonusByMonth?: Record<number, number>
 }
 
-export default function YearlyGrid({ snapshots, year, salary, currency }: YearlyGridProps) {
+export default function YearlyGrid({ snapshots, year, salary, currency, bonusByMonth = {} }: YearlyGridProps) {
   const fmt = (v: number) => formatCurrency(v, currency)
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const s = snapshots.find((snap) => snap.month === i + 1)
+    const directBonus = bonusByMonth[i + 1]
     return {
       month: i + 1,
       label: MONTH_SHORT[i],
       starting: s?.starting_balance ?? null,
       salary: s?.salary ?? salary,
-      deposits: s?.total_deposits ?? null,
+      // Prefer directly-fetched bonus total over snapshot value
+      deposits: directBonus !== undefined ? directBonus : (s?.total_deposits ?? null),
       fixed: s?.total_fixed_expenses ?? null,
       variable: s?.total_variable_expenses ?? null,
       end: s?.end_balance ?? null,

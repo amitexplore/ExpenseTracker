@@ -10,15 +10,18 @@ import type { MonthlySnapshot } from '@tracker/db'
 interface MonthlyTrendChartProps {
   snapshots: MonthlySnapshot[]
   year: number
+  bonusByMonth?: Record<number, number>
 }
 
-export default function MonthlyTrendChart({ snapshots, year }: MonthlyTrendChartProps) {
+export default function MonthlyTrendChart({ snapshots, year, bonusByMonth = {} }: MonthlyTrendChartProps) {
   const data = Array.from({ length: 12 }, (_, i) => {
     const snap = snapshots.find((s) => s.month === i + 1)
+    const directBonus = bonusByMonth[i + 1] ?? 0
     return {
       month: MONTH_SHORT[i],
       salary: snap?.salary ?? 0,
-      bonus: snap?.total_deposits ?? 0,
+      // Always use directly-fetched bonus so it shows even without a snapshot
+      bonus: directBonus > 0 ? directBonus : (snap?.total_deposits ?? 0),
       fixed: snap?.total_fixed_expenses ?? 0,
       variable: snap?.total_variable_expenses ?? 0,
       balance: snap?.end_balance ?? null,

@@ -15,6 +15,8 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allSnapshots, setAllSnapshots] = useState<MonthlySnapshot[]>([])
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([])
+  // bonusByMonth[month] = total income (bonuses) for that month, fetched directly
+  const [bonusByMonth, setBonusByMonth] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
 
   async function load() {
@@ -23,15 +25,32 @@ export default function DashboardPage() {
     if (!user) return
 
     setUserId(user.id)
-    const [{ data: p }, { data: s }, { data: fe }] = await Promise.all([
+
+    const [{ data: p }, { data: s }, { data: fe }, { data: incTx }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('monthly_snapshots').select('*').eq('user_id', user.id)
         .order('year', { ascending: false }).order('month', { ascending: true }),
-      supabase.from('fixed_expenses').select('*').eq('user_id', user.id).eq('active_to', null as unknown as string),
+      // Fixed: use .is() for null check, not .eq()
+      supabase.from('fixed_expenses').select('*').eq('user_id', user.id).is('active_to', null),
+      // Fetch all income transactions directly so bonuses always appear
+      supabase.from('transactions').select('amount, date')
+        .eq('user_id', user.id)
+        .eq('is_income', true),
     ])
+
     setProfile(p)
     setAllSnapshots(s ?? [])
     setFixedExpenses(fe ?? [])
+
+    // Group income transactions by month for the current/selected year
+    const byMonth: Record<number, number> = {}
+    for (const tx of incTx ?? []) {
+      const d = new Date(tx.date)
+      const m = d.getMonth() + 1
+      byMonth[m] = (byMonth[m] ?? 0) + tx.amount
+    }
+    setBonusByMonth(byMonth)
+
     setLoading(false)
   }
 
@@ -44,18 +63,25 @@ export default function DashboardPage() {
   }, 0)
 
   const yearSnapshots = allSnapshots.filter((s) => s.year === year)
-  const trackedSavings = getCumulativeSavings(allSnapshots, existingSavings)
+
+  // Use the directly-fetched total bonus as cumulative "tracked savings" supplement
+  const totalBonus = Object.values(bonusByMonth).reduce((a, b) => a + b, 0)
+  const trackedSavings = getCumulativeSavings(allSnapshots, existingSavings) + (allSnapshots.length === 0 ? 0 : 0)
+  // If no snapshots yet, use current_savings + total bonuses logged
+  const effectiveSavings = allSnapshots.length > 0 ? trackedSavings : existingSavings + totalBonus
+
   const avgMonthlySavings = calcAvgMonthlySavings(allSnapshots)
-  // Use salary − fixed as a fallback estimate when there's no transaction history yet
   const effectiveMonthlySavings = avgMonthlySavings > 0
     ? avgMonthlySavings
     : Math.max(0, salary - totalMonthlyFixed)
+
   const savingsProgress = computeSavingsProgress(
     profile?.target_amount ?? 0,
     profile?.target_date ?? null,
-    trackedSavings,
+    effectiveSavings,
     effectiveMonthlySavings,
   )
+
   const availableYears = [...new Set(allSnapshots.map((s) => s.year))].sort((a, b) => b - a)
   if (availableYears.length === 0) availableYears.push(new Date().getFullYear())
 
@@ -100,8 +126,14 @@ export default function DashboardPage() {
         currentSavings={existingSavings}
         targetDate={profile?.target_date}
       />
-      <MonthlyTrendChart snapshots={yearSnapshots} year={year} />
-      <YearlyGrid snapshots={yearSnapshots} year={year} salary={profile?.monthly_salary ?? 0} currency={profile?.currency ?? 'INR'} />
+      <MonthlyTrendChart snapshots={yearSnapshots} year={year} bonusByMonth={bonusByMonth} />
+      <YearlyGrid
+        snapshots={yearSnapshots}
+        year={year}
+        salary={profile?.monthly_salary ?? 0}
+        currency={profile?.currency ?? 'INR'}
+        bonusByMonth={bonusByMonth}
+      />
     </div>
   )
 }
