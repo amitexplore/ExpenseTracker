@@ -22,6 +22,7 @@ export interface Database {
           full_name: string | null
           avatar_url: string | null
           monthly_salary: number
+          current_savings: number
           target_amount: number
           target_date: string | null
           currency: string

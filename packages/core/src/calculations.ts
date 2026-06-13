@@ -110,9 +110,10 @@ export function calcAvgMonthlySavings(snapshots: MonthlySnapshot[]): number {
 
 /**
  * Get cumulative savings across all snapshots (end balance of last month)
+ * Adds the user's pre-existing current_savings as the base
  */
-export function getCumulativeSavings(snapshots: MonthlySnapshot[]): number {
-  if (snapshots.length === 0) return 0
+export function getCumulativeSavings(snapshots: MonthlySnapshot[], currentSavings = 0): number {
+  if (snapshots.length === 0) return currentSavings
   const sorted = [...snapshots].sort((a, b) =>
     a.year !== b.year ? a.year - b.year : a.month - b.month
   )

@@ -8,10 +8,12 @@ import { Target, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
 interface SavingsProgressCardProps {
   progress: SavingsProgress
   currency: string
+  currentSavings?: number
 }
 
-export default function SavingsProgressCard({ progress, currency }: SavingsProgressCardProps) {
+export default function SavingsProgressCard({ progress, currency, currentSavings = 0 }: SavingsProgressCardProps) {
   const { targetAmount, actualAmount, difference, percentageAchieved, monthsRemaining, projectedDate, onTrack } = progress
+  const netGoalRemaining = Math.max(0, targetAmount - currentSavings - actualAmount)
   const clampedPct = Math.min(100, Math.max(0, percentageAchieved))
 
   const circumference = 2 * Math.PI * 54
@@ -55,18 +57,25 @@ export default function SavingsProgressCard({ progress, currency }: SavingsProgr
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-400">Actual savings</p>
+                <p className="text-xs text-gray-400">Current savings</p>
                 <p className="text-lg font-semibold text-brand-600">
-                  {formatCurrency(actualAmount, currency)}
+                  {formatCurrency(currentSavings + actualAmount, currency)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Remaining</p>
+                <p className="text-xs text-gray-400">Still needed</p>
                 <p className="text-lg font-semibold text-gray-700">
-                  {formatCurrency(Math.max(0, difference), currency)}
+                  {formatCurrency(netGoalRemaining, currency)}
                 </p>
               </div>
             </div>
+
+            {currentSavings > 0 && (
+              <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                Includes <span className="font-medium text-gray-600">{formatCurrency(currentSavings, currency)}</span> existing savings
+                {actualAmount > 0 && <> + <span className="font-medium text-gray-600">{formatCurrency(actualAmount, currency)}</span> tracked this year</>}
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               {onTrack ? (

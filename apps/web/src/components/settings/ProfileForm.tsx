@@ -26,6 +26,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
     const form = new FormData(e.currentTarget)
     const updates = {
       monthly_salary: parseFloat(form.get('monthly_salary') as string),
+      current_savings: parseFloat(form.get('current_savings') as string) || 0,
       target_amount: parseFloat(form.get('target_amount') as string),
       target_date: (form.get('target_date') as string) || null,
       currency: form.get('currency') as string,
@@ -54,9 +55,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Monthly Salary
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Salary</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
               <input
@@ -71,7 +70,6 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
               />
             </div>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
             <select
@@ -84,6 +82,26 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Current savings */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Current Savings (what you already have)
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
+            <input
+              name="current_savings"
+              type="number"
+              step="1"
+              min="0"
+              defaultValue={profile?.current_savings ?? ''}
+              className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="1899000"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">This is your existing savings — used as the starting point for your goal</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
