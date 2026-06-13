@@ -1,5 +1,4 @@
 -- Enable required extensions
-create extension if not exists "uuid-ossp";
 create extension if not exists "pg_cron";
 
 -- ============================================================
@@ -24,7 +23,7 @@ create table public.profiles (
 -- EXPENSE CATEGORIES
 -- ============================================================
 create table public.expense_categories (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   name text not null,
   type text not null check (type in ('fixed','variable','income','savings')),
@@ -39,7 +38,7 @@ create table public.expense_categories (
 -- FIXED EXPENSES
 -- ============================================================
 create table public.fixed_expenses (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   category_id uuid not null references public.expense_categories(id) on delete restrict,
   name text not null,
@@ -55,7 +54,7 @@ create table public.fixed_expenses (
 -- TRANSACTIONS
 -- ============================================================
 create table public.transactions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   category_id uuid references public.expense_categories(id) on delete set null,
   amount numeric(14,2) not null check (amount > 0),
@@ -74,7 +73,7 @@ create table public.transactions (
 -- GMAIL CONNECTIONS
 -- ============================================================
 create table public.gmail_connections (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   gmail_address text not null,
   access_token text not null,
@@ -93,7 +92,7 @@ create table public.gmail_connections (
 -- MONTHLY SNAPSHOTS (pre-computed for dashboard performance)
 -- ============================================================
 create table public.monthly_snapshots (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   year int not null,
   month int not null check (month between 1 and 12),
