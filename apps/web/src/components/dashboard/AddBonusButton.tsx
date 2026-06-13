@@ -53,15 +53,7 @@ export default function AddBonusButton({ userId, onAdded }: AddBonusButtonProps)
       return
     }
 
-    // Recompute the monthly snapshot for this month
-    const [y, m] = date.split('-').map(Number)
-    const { error: rpcError } = await supabase.rpc('recompute_monthly_snapshot', {
-      p_user_id: userId,
-      p_year: y,
-      p_month: m,
-    })
-    if (rpcError) console.error('snapshot recompute error:', rpcError.message)
-
+    // Snapshot is recomputed automatically by DB trigger on transaction insert
     setAmount('')
     setDescription('')
     setDate(new Date().toISOString().split('T')[0])

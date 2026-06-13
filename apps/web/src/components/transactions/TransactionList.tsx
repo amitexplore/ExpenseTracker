@@ -49,10 +49,7 @@ function EditInlineForm({
       .update({ amount: parseFloat(amount), description, date })
       .eq('id', tx.id)
     if (dbError) { setError(dbError.message); setSaving(false); return }
-
-    // Recompute snapshot for the transaction's month
-    const [y, m] = date.split('-').map(Number)
-    await supabase.rpc('recompute_monthly_snapshot', { p_user_id: tx.user_id, p_year: y, p_month: m })
+    // Snapshot recomputed automatically by DB trigger
     setSaving(false)
     onSave()
   }
@@ -111,10 +108,7 @@ export default function TransactionList({ transactions, currency, onChanged }: T
     setDeletingId(tx.id)
     const supabase = createClient()
     await supabase.from('transactions').delete().eq('id', tx.id)
-
-    // Recompute snapshot for that month
-    const [y, m] = tx.date.split('-').map(Number)
-    await supabase.rpc('recompute_monthly_snapshot', { p_user_id: tx.user_id, p_year: y, p_month: m })
+    // Snapshot recomputed automatically by DB trigger
     setDeletingId(null)
     onChanged?.()
   }

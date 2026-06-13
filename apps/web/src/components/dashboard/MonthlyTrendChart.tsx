@@ -4,29 +4,23 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { MONTH_SHORT, formatINR } from '@tracker/core'
-import type { MonthlySnapshot } from '@tracker/db'
+import { formatINR } from '@tracker/core'
+import type { MonthData } from '@/app/(dashboard)/dashboard/page'
 
 interface MonthlyTrendChartProps {
-  snapshots: MonthlySnapshot[]
+  monthData: MonthData[]
   year: number
-  bonusByMonth?: Record<number, number>
 }
 
-export default function MonthlyTrendChart({ snapshots, year, bonusByMonth = {} }: MonthlyTrendChartProps) {
-  const data = Array.from({ length: 12 }, (_, i) => {
-    const snap = snapshots.find((s) => s.month === i + 1)
-    const directBonus = bonusByMonth[i + 1] ?? 0
-    return {
-      month: MONTH_SHORT[i],
-      salary: snap?.salary ?? 0,
-      // Always use directly-fetched bonus so it shows even without a snapshot
-      bonus: directBonus > 0 ? directBonus : (snap?.total_deposits ?? 0),
-      fixed: snap?.total_fixed_expenses ?? 0,
-      variable: snap?.total_variable_expenses ?? 0,
-      balance: snap?.end_balance ?? null,
-    }
-  })
+export default function MonthlyTrendChart({ monthData, year }: MonthlyTrendChartProps) {
+  const data = monthData.map((m) => ({
+    month: m.label,
+    salary: m.salary,
+    bonus: m.deposits,
+    fixed: m.fixed,
+    variable: m.variable,
+    balance: m.end,
+  }))
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6">
@@ -44,16 +38,20 @@ export default function MonthlyTrendChart({ snapshots, year, bonusByMonth = {} }
           />
           <Tooltip
             formatter={(value: number, name: string) => {
-              if (name === 'Bonus / Deposits' && value === 0) return [null, null]
+              if (value === 0) return [null, null]
               return [formatINR(value), name]
             }}
-            contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07)' }}
+            contentStyle={{
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07)',
+            }}
           />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-          <Bar dataKey="salary" name="Salary" fill="#bbf7d0" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="bonus" name="Bonus / Deposits" fill="#fde68a" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="fixed" name="Fixed Expenses" fill="#fca5a5" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="variable" name="Variable Expenses" fill="#fdba74" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="salary"   name="Salary"             fill="#bbf7d0" radius={[4,4,0,0]} />
+          <Bar dataKey="bonus"    name="Bonus / Income"     fill="#fde68a" radius={[4,4,0,0]} />
+          <Bar dataKey="fixed"    name="Fixed Expenses"     fill="#fca5a5" radius={[4,4,0,0]} />
+          <Bar dataKey="variable" name="Variable Expenses"  fill="#fdba74" radius={[4,4,0,0]} />
           <Line
             type="monotone"
             dataKey="balance"
