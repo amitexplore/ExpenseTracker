@@ -9,9 +9,10 @@ interface SavingsProgressCardProps {
   progress: SavingsProgress
   currency: string
   currentSavings?: number
+  targetDate?: string | null
 }
 
-export default function SavingsProgressCard({ progress, currency, currentSavings = 0 }: SavingsProgressCardProps) {
+export default function SavingsProgressCard({ progress, currency, currentSavings = 0, targetDate }: SavingsProgressCardProps) {
   const { targetAmount, actualAmount, difference, percentageAchieved, monthsRemaining, projectedDate, onTrack } = progress
   const netGoalRemaining = Math.max(0, targetAmount - currentSavings - actualAmount)
   const clampedPct = Math.min(100, Math.max(0, percentageAchieved))
@@ -77,7 +78,7 @@ export default function SavingsProgressCard({ progress, currency, currentSavings
               </div>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {onTrack ? (
                 <CheckCircle className="w-4 h-4 text-brand-500" />
               ) : (
@@ -86,7 +87,7 @@ export default function SavingsProgressCard({ progress, currency, currentSavings
               <span className={`text-sm font-medium ${onTrack ? 'text-brand-600' : 'text-orange-600'}`}>
                 {onTrack ? 'On track!' : 'Behind target'}
               </span>
-              {projectedDate && (
+              {projectedDate && targetDate && (
                 <span className="text-sm text-gray-400">
                   · Projected: {format(projectedDate, 'MMM yyyy')}
                 </span>
@@ -125,8 +126,13 @@ export default function SavingsProgressCard({ progress, currency, currentSavings
             Target date
           </div>
           <p className="text-lg font-bold text-gray-900">
-            {progress.projectedDate ? format(new Date(progress.projectedDate), 'MMM d, yyyy') : 'Not set'}
+            {targetDate ? format(new Date(targetDate), 'MMM d, yyyy') : 'Not set'}
           </p>
+          {projectedDate && !targetDate && (
+            <p className="text-xs text-gray-400 mt-1">
+              Projected: {format(projectedDate, 'MMM yyyy')}
+            </p>
+          )}
         </div>
       </div>
     </div>

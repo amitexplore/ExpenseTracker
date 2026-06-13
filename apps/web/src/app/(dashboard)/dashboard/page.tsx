@@ -86,6 +86,7 @@ export default function DashboardPage() {
         progress={savingsProgress}
         currency={profile?.currency ?? 'INR'}
         currentSavings={existingSavings}
+        targetDate={profile?.target_date}
       />
       <MonthlyTrendChart snapshots={yearSnapshots} year={year} />
       <YearlyGrid snapshots={yearSnapshots} year={year} salary={profile?.monthly_salary ?? 0} currency={profile?.currency ?? 'INR'} />
