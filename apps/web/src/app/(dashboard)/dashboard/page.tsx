@@ -30,43 +30,17 @@ function buildMonthData(
   salary: number,
   currentSavings: number,
 ): MonthData[] {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
   let runningBalance: number | null = null
 
   return Array.from({ length: 12 }, (_, i) => {
     const month = i + 1
     const snap = snapshots.find((s) => s.month === month)
-
-    if (snap) {
-      runningBalance = snap.end_balance
-      return {
-        month,
-        label: MONTH_SHORT[i],
-        starting: snap.starting_balance,
-        salary: snap.salary,
-        deposits: snap.total_deposits,
-        fixed: snap.total_fixed_expenses,
-        variable: snap.total_variable_expenses,
-        end: snap.end_balance,
-        hasSnapshot: true,
-      }
-    }
-
-    // No snapshot — compute directly from source data
     const monthDate = new Date(year, i, 1)
 
-    const monthTx = allTransactions.filter((t) => {
-      const d = new Date(t.date)
-      return d.getFullYear() === year && d.getMonth() + 1 === month
-    })
-
-    const deposits = monthTx
-      .filter((t) => t.is_income)
-      .reduce((s, t) => s + t.amount, 0)
-
-    const variable = monthTx
-      .filter((t) => !t.is_income)
-      .reduce((s, t) => s + t.amount, 0)
-
+    // Fixed obligations for this month (shown even for future months as planning info)
     const fixed = fixedExpenses
       .filter((fe) => {
         const from = new Date(fe.active_from)
@@ -77,6 +51,40 @@ function buildMonthData(
         return s + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0)
       }, 0)
 
+    // --- Future month: only show upcoming fixed obligations, no salary projection ---
+    const isFuture = year > currentYear || (year === currentYear && month > currentMonth)
+    if (isFuture && !snap) {
+      return {
+        month, label: MONTH_SHORT[i],
+        starting: null, salary: 0, deposits: 0,
+        fixed: fixed > 0 ? fixed : 0,
+        variable: 0, end: null, hasSnapshot: false,
+      }
+    }
+
+    // --- Confirmed snapshot from DB ---
+    if (snap) {
+      runningBalance = snap.end_balance
+      return {
+        month, label: MONTH_SHORT[i],
+        starting: snap.starting_balance,
+        salary: snap.salary,
+        deposits: snap.total_deposits,
+        fixed: snap.total_fixed_expenses,
+        variable: snap.total_variable_expenses,
+        end: snap.end_balance,
+        hasSnapshot: true,
+      }
+    }
+
+    // --- Past/current month with no snapshot: compute from raw data ---
+    const monthTx = allTransactions.filter((t) => {
+      const d = new Date(t.date)
+      return d.getFullYear() === year && d.getMonth() + 1 === month
+    })
+
+    const deposits = monthTx.filter((t) => t.is_income).reduce((s, t) => s + t.amount, 0)
+    const variable = monthTx.filter((t) => !t.is_income).reduce((s, t) => s + t.amount, 0)
     const hasAnyData = deposits > 0 || variable > 0 || fixed > 0
 
     if (!hasAnyData && runningBalance === null) {
@@ -136,14 +144,20 @@ export default function DashboardPage() {
 
   const monthData = buildMonthData(year, yearSnapshots, transactions, fixedExpenses, salary, existingSavings)
 
-  // Savings progress: use latest snapshot end_balance as cumulative savings
-  const sortedSnaps = [...allYearSnapshots].sort((a, b) =>
+  // Only use snapshots for months that have actually passed (no future projections)
+  const now = new Date()
+  const confirmedSnaps = snapshots.filter((s) =>
+    s.year < now.getFullYear() ||
+    (s.year === now.getFullYear() && s.month <= now.getMonth() + 1)
+  )
+  const sortedConfirmed = [...confirmedSnaps].sort((a, b) =>
     a.year !== b.year ? a.year - b.year : a.month - b.month
   )
-  const latestSnap = sortedSnaps[sortedSnaps.length - 1]
+  const latestSnap = sortedConfirmed[sortedConfirmed.length - 1]
+  // end_balance already starts from current_savings — use it as the total wealth figure
   const trackedSavings = latestSnap ? latestSnap.end_balance : existingSavings
 
-  const avgMonthlySavings = calcAvgMonthlySavings(allYearSnapshots)
+  const avgMonthlySavings = calcAvgMonthlySavings(confirmedSnaps)
   const totalMonthlyFixed = fixedExpenses.reduce((sum, fe) => {
     return sum + (fe.frequency === 'monthly' ? fe.amount : fe.frequency === 'yearly' ? fe.amount / 12 : 0)
   }, 0)
