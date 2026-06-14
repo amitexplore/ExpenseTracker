@@ -8,8 +8,10 @@ import YearlyGrid from '@/components/dashboard/YearlyGrid'
 import SavingsProgressCard from '@/components/dashboard/SavingsProgressCard'
 import MonthlyTrendChart from '@/components/dashboard/MonthlyTrendChart'
 import AddBonusButton from '@/components/dashboard/AddBonusButton'
-import { computeSavingsProgress, calcAvgMonthlySavings, MONTH_SHORT } from '@tracker/core'
+import TransferFundsButton from '@/components/dashboard/TransferFundsButton'
+import { computeSavingsProgress, calcAvgMonthlySavings, MONTH_SHORT, formatCurrency } from '@tracker/core'
 import type { MonthlySnapshot, Profile, FixedExpense, Transaction } from '@tracker/db'
+import { Wallet, PiggyBank, TrendingUp } from 'lucide-react'
 
 /** Per-month computed data used by both YearlyGrid and MonthlyTrendChart */
 export interface MonthData {
@@ -30,7 +32,7 @@ function buildMonthData(
   allTransactions: Transaction[],
   fixedExpenses: FixedExpense[],
   salary: number,
-  currentSavings: number,
+  accountBalanceStart: number,
 ): MonthData[] {
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -42,7 +44,6 @@ function buildMonthData(
     const snap = snapshots.find((s) => s.month === month)
     const monthDate = new Date(year, i, 1)
 
-    // Fixed obligations for this month (shown even for future months as planning info)
     const fixed = fixedExpenses
       .filter((fe) => {
         const from = new Date(fe.active_from)
@@ -53,7 +54,6 @@ function buildMonthData(
         if (fe.frequency === 'monthly') return s + fe.amount
         if (fe.frequency === 'yearly') return s + fe.amount / 12
         if (fe.frequency === 'one_time') {
-          // One-time: apply full amount only in the month of active_from
           const from = new Date(fe.active_from)
           if (from.getFullYear() === year && from.getMonth() + 1 === month) return s + fe.amount
           return s
@@ -61,43 +61,24 @@ function buildMonthData(
         return s
       }, 0)
 
-    // --- Future month: only show upcoming fixed obligations, no salary projection ---
+    // Future month with no snapshot: only show obligations
     const isFuture = year > currentYear || (year === currentYear && month > currentMonth)
     if (isFuture && !snap) {
-      return {
-        month, label: MONTH_SHORT[i],
-        starting: null, salary: 0, deposits: 0,
-        fixed: fixed > 0 ? fixed : 0,
-        variable: 0, end: null, hasSnapshot: false,
-      }
+      return { month, label: MONTH_SHORT[i], starting: null, salary: 0, deposits: 0, fixed: fixed > 0 ? fixed : 0, variable: 0, end: null, hasSnapshot: false }
     }
 
-    // --- Confirmed snapshot from DB ---
+    // Confirmed snapshot from DB
     if (snap) {
       runningBalance = snap.end_balance
-      return {
-        month, label: MONTH_SHORT[i],
-        starting: snap.starting_balance,
-        salary: snap.salary,
-        deposits: snap.total_deposits,
-        fixed: snap.total_fixed_expenses,
-        variable: snap.total_variable_expenses,
-        end: snap.end_balance,
-        hasSnapshot: true,
-      }
+      return { month, label: MONTH_SHORT[i], starting: snap.starting_balance, salary: snap.salary, deposits: snap.total_deposits, fixed: snap.total_fixed_expenses, variable: snap.total_variable_expenses, end: snap.end_balance, hasSnapshot: true }
     }
 
-    // --- Past/current month with no snapshot: compute from raw data ---
+    // Past/current month with no snapshot: compute from raw transactions
     const monthTx = allTransactions.filter((t) => {
       const d = new Date(t.date)
       return d.getFullYear() === year && d.getMonth() + 1 === month
     })
-
-    // Exclude Salary-category income (double-counted with profile salary)
-    const deposits = monthTx
-      .filter((t) => t.is_income)
-      .reduce((s, t) => s + t.amount, 0)
-    // All non-income transactions count as variable outflows
+    const deposits = monthTx.filter((t) => t.is_income).reduce((s, t) => s + t.amount, 0)
     const variable = monthTx.filter((t) => !t.is_income).reduce((s, t) => s + t.amount, 0)
     const hasAnyData = deposits > 0 || variable > 0 || fixed > 0
 
@@ -105,10 +86,9 @@ function buildMonthData(
       return { month, label: MONTH_SHORT[i], starting: null, salary: 0, deposits: 0, fixed: 0, variable: 0, end: null, hasSnapshot: false }
     }
 
-    const starting = runningBalance ?? currentSavings
+    const starting = runningBalance ?? accountBalanceStart
     const end = starting + salary + deposits - fixed - variable
     runningBalance = end
-
     return { month, label: MONTH_SHORT[i], starting, salary, deposits, fixed, variable, end, hasSnapshot: false }
   })
 }
@@ -131,11 +111,8 @@ export default function DashboardPage(): React.JSX.Element {
 
     const [{ data: p }, { data: s }, { data: fe }, { data: tx }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('monthly_snapshots').select('*').eq('user_id', user.id)
-        .order('year').order('month'),
-      // Fetch ALL fixed expenses so historical months compute correctly
+      supabase.from('monthly_snapshots').select('*').eq('user_id', user.id).order('year').order('month'),
       supabase.from('fixed_expenses').select('*').eq('user_id', user.id),
-      // All transactions for the selected year (fetched fresh each year change)
       supabase.from('transactions').select('*').eq('user_id', user.id)
         .gte('date', `${year}-01-01`).lte('date', `${year}-12-31`),
     ])
@@ -149,13 +126,17 @@ export default function DashboardPage(): React.JSX.Element {
 
   useEffect(() => { load() }, [year])
 
-  const existingSavings = profile?.current_savings ?? 0
+  const currency = profile?.currency ?? 'INR'
+  // Total Savings: the separate savings pot — never mixed with Account Balance
+  const totalSavings = profile?.current_savings ?? 0
+  // Account Balance seed: starting point of the monthly balance chain
+  const accountBalanceStart = profile?.account_balance_start ?? 0
   const salary = profile?.monthly_salary ?? 0
 
   const yearSnapshots = snapshots.filter((s) => s.year === year)
-  const monthData = buildMonthData(year, yearSnapshots, transactions, fixedExpenses, salary, existingSavings)
+  const monthData = buildMonthData(year, yearSnapshots, transactions, fixedExpenses, salary, accountBalanceStart)
 
-  // Only use confirmed (past + current) snapshots — never project future months
+  // Account Balance = latest confirmed snapshot end_balance (or accountBalanceStart if none)
   const now = new Date()
   const confirmedSnaps = snapshots.filter((s) =>
     s.year < now.getFullYear() ||
@@ -165,11 +146,10 @@ export default function DashboardPage(): React.JSX.Element {
     a.year !== b.year ? a.year - b.year : a.month - b.month
   )
   const latestSnap = sortedConfirmed[sortedConfirmed.length - 1]
-  // end_balance already starts from current_savings — use as total wealth
-  const trackedSavings = latestSnap ? latestSnap.end_balance : existingSavings
+  const accountBalance = latestSnap ? latestSnap.end_balance : accountBalanceStart
 
+  // Savings progress is based on Total Savings pot only (not Account Balance)
   const avgMonthlySavings = calcAvgMonthlySavings(confirmedSnaps)
-  // Fallback estimate: salary minus currently-active fixed obligations this month
   const nowMonthDate = new Date(now.getFullYear(), now.getMonth(), 1)
   const totalMonthlyFixed = fixedExpenses
     .filter((fe) => {
@@ -185,7 +165,7 @@ export default function DashboardPage(): React.JSX.Element {
   const savingsProgress = computeSavingsProgress(
     profile?.target_amount ?? 0,
     profile?.target_date ?? null,
-    trackedSavings,
+    totalSavings,
     effectiveMonthlySavings,
   )
 
@@ -204,13 +184,22 @@ export default function DashboardPage(): React.JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Your financial overview</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {userId && <AddBonusButton userId={userId} onAdded={load} />}
+          {userId && (
+            <TransferFundsButton
+              userId={userId}
+              accountBalance={accountBalance}
+              currency={currency}
+              onTransferred={load}
+            />
+          )}
           <div className="flex gap-2">
             {availableYears.map((y) => (
               <button
@@ -229,17 +218,48 @@ export default function DashboardPage(): React.JSX.Element {
         </div>
       </div>
 
+      {/* Account Balance + Total Savings summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Account Balance */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Wallet className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-gray-500 font-medium">Account Balance</p>
+            <p className="text-2xl font-bold text-gray-900 mt-0.5">
+              {formatCurrency(accountBalance, currency)}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Monthly cash flow — salary in, expenses out</p>
+          </div>
+        </div>
+
+        {/* Total Savings */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <PiggyBank className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-gray-500 font-medium">Total Savings</p>
+            <p className="text-2xl font-bold text-gray-900 mt-0.5">
+              {formatCurrency(totalSavings, currency)}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Your savings pot — grows via transfers</p>
+          </div>
+        </div>
+      </div>
+
       <SavingsProgressCard
         progress={savingsProgress}
-        currency={profile?.currency ?? 'INR'}
-        currentSavings={existingSavings}
+        currency={currency}
+        currentSavings={totalSavings}
         targetDate={profile?.target_date}
       />
       <MonthlyTrendChart monthData={monthData} year={year} />
       <YearlyGrid
         monthData={monthData}
         year={year}
-        currency={profile?.currency ?? 'INR'}
+        currency={currency}
       />
     </div>
   )

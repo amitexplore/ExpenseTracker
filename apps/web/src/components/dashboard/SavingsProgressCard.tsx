@@ -16,10 +16,8 @@ interface SavingsProgressCardProps {
 
 export default function SavingsProgressCard({ progress, currency, currentSavings = 0, targetDate }: SavingsProgressCardProps): React.JSX.Element {
   const { targetAmount, actualAmount, difference, percentageAchieved, monthsRemaining, projectedDate, onTrack } = progress
-  // actualAmount = end_balance, which already starts from currentSavings as base —
-  // use it directly as total wealth; never add currentSavings again
-  const netGoalRemaining = Math.max(0, difference)   // difference = targetAmount - actualAmount
-  const newSavings = Math.max(0, actualAmount - currentSavings)
+  // actualAmount = totalSavings (the savings pot) — use directly
+  const netGoalRemaining = Math.max(0, difference)
   const clampedPct = Math.min(100, Math.max(0, percentageAchieved))
 
   const circumference = 2 * Math.PI * 54
@@ -76,14 +74,9 @@ export default function SavingsProgressCard({ progress, currency, currentSavings
               </div>
             </div>
 
-            {currentSavings > 0 && (
-              <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-                <span className="font-medium text-gray-600">{formatCurrency(currentSavings, currency)}</span> existing
-                {newSavings > 0 && (
-                  <> + <span className="font-medium text-green-600">+{formatCurrency(newSavings, currency)}</span> added via app</>
-                )}
-              </div>
-            )}
+            <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+              Total Savings grow when you transfer from your Account Balance on the dashboard.
+            </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               {onTrack ? (

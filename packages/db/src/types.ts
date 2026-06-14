@@ -23,6 +23,7 @@ export interface Database {
           avatar_url: string | null
           monthly_salary: number
           current_savings: number
+          account_balance_start: number
           target_amount: number
           target_date: string | null
           currency: string
@@ -38,6 +39,7 @@ export interface Database {
           avatar_url?: string | null
           monthly_salary?: number
           current_savings?: number
+          account_balance_start?: number
           target_amount?: number
           target_date?: string | null
           currency?: string
@@ -51,6 +53,7 @@ export interface Database {
           avatar_url?: string | null
           monthly_salary?: number
           current_savings?: number
+          account_balance_start?: number
           target_amount?: number
           target_date?: string | null
           currency?: string

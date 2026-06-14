@@ -29,6 +29,7 @@ export default function ProfileForm({ profile, userId, onChanged }: ProfileFormP
     const form = new FormData(e.currentTarget)
     const updates = {
       monthly_salary: parseFloat(form.get('monthly_salary') as string),
+      account_balance_start: parseFloat(form.get('account_balance_start') as string) || 0,
       current_savings: parseFloat(form.get('current_savings') as string) || 0,
       target_amount: parseFloat(form.get('target_amount') as string),
       target_date: (form.get('target_date') as string) || null,
@@ -88,10 +89,30 @@ export default function ProfileForm({ profile, userId, onChanged }: ProfileFormP
           </div>
         </div>
 
-        {/* Current savings */}
+        {/* Account Balance Start */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Current Savings (what you already have)
+            Starting Account Balance
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
+            <input
+              name="account_balance_start"
+              type="number"
+              step="1"
+              min="0"
+              defaultValue={profile?.account_balance_start ?? ''}
+              className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="0"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">The opening balance for your Account Balance tracker (e.g. amount in your salary account)</p>
+        </div>
+
+        {/* Total Savings */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Total Savings (savings pot)
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
@@ -105,7 +126,7 @@ export default function ProfileForm({ profile, userId, onChanged }: ProfileFormP
               placeholder="1899000"
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1">This is your existing savings — used as the starting point for your goal</p>
+          <p className="text-xs text-gray-400 mt-1">Your dedicated savings — separate from Account Balance. Transfer from dashboard to grow this.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
