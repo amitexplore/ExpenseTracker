@@ -46,9 +46,12 @@ function buildMonthData(
 
     const fixed = fixedExpenses
       .filter((fe) => {
-        const from = new Date(fe.active_from)
-        const to = fe.active_to ? new Date(fe.active_to) : null
-        return monthDate >= from && (to === null || monthDate <= to)
+        // Compare at month level: an expense starting June 14 applies to all of June
+        const fromMonth = new Date(fe.active_from)
+        fromMonth.setDate(1)
+        const toMonth = fe.active_to ? new Date(fe.active_to) : null
+        if (toMonth) toMonth.setDate(1)
+        return monthDate >= fromMonth && (toMonth === null || monthDate <= toMonth)
       })
       .reduce((s, fe) => {
         if (fe.frequency === 'monthly') return s + fe.amount

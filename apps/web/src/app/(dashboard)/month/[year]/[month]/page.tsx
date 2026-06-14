@@ -73,9 +73,12 @@ export default function MonthPage({ params }: { params: { year: string; month: s
   const variable = transactions.filter((t) => !t.is_income).reduce((s, t) => s + t.amount, 0)
   const fixed = fixedExpenses
     .filter((fe) => {
-      const from = new Date(fe.active_from)
-      const to = fe.active_to ? new Date(fe.active_to) : null
-      return monthDate >= from && (to === null || monthDate <= to)
+      // Compare at month level so mid-month active_from is included for that month
+      const fromMonth = new Date(fe.active_from)
+      fromMonth.setDate(1)
+      const toMonth = fe.active_to ? new Date(fe.active_to) : null
+      if (toMonth) toMonth.setDate(1)
+      return monthDate >= fromMonth && (toMonth === null || monthDate <= toMonth)
     })
     .reduce((s, fe) => {
       if (fe.frequency === 'monthly') return s + fe.amount
