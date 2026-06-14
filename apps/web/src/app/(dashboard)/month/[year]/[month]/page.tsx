@@ -3,6 +3,7 @@
 import React from 'react'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, MONTH_NAMES } from '@tracker/core'
 import Link from 'next/link'
@@ -15,8 +16,13 @@ type TransactionWithCategory = Transaction & {
 }
 
 export default function MonthPage({ params }: { params: { year: string; month: string } }): React.JSX.Element {
-  const year = parseInt(params.year)
-  const month = parseInt(params.month)
+  const year  = parseInt(params.year,  10)
+  const month = parseInt(params.month, 10)
+
+  // Guard against invalid URL params — prevents NaN propagation into DB queries
+  const paramsValid =
+    !isNaN(year)  && year  >= 2000 && year  <= 2100 &&
+    !isNaN(month) && month >= 1    && month <= 12
 
   const [snapshot, setSnapshot] = useState<MonthlySnapshot | null>(null)
   const [priorEndBalance, setPriorEndBalance] = useState<number | null>(null)
@@ -26,12 +32,18 @@ export default function MonthPage({ params }: { params: { year: string; month: s
   const [salary, setSalary] = useState(0)
   const [currentSavings, setCurrentSavings] = useState(0)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
+    if (!paramsValid) {
+      router.replace('/dashboard')
+      return
+    }
+
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { router.replace('/login'); return }
 
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`
       const lastDay = new Date(year, month, 0).getDate()
@@ -63,7 +75,7 @@ export default function MonthPage({ params }: { params: { year: string; month: s
       setLoading(false)
     }
     load()
-  }, [year, month])
+  }, [year, month, paramsValid, router])
 
   const fmt = (v: number) => formatCurrency(v, currency)
 

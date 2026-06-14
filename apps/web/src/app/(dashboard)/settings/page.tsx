@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import ProfileForm from '@/components/settings/ProfileForm'
 import FixedExpensesManager from '@/components/settings/FixedExpensesManager'
+import CategoryBudgets from '@/components/settings/CategoryBudgets'
 import GmailConnectCard from '@/components/settings/GmailConnectCard'
 import SyncIntervalCard from '@/components/settings/SyncIntervalCard'
 import type { Profile, FixedExpense, ExpenseCategory } from '@tracker/db'
@@ -25,7 +26,7 @@ export default function SettingsPage(): React.JSX.Element {
   const [userId, setUserId] = useState('')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpenseWithCategory[]>([])
-  const [categories, setCategories] = useState<Pick<ExpenseCategory, 'id' | 'name' | 'color' | 'type'>[]>([])
+  const [categories, setCategories] = useState<ExpenseCategory[]>([])
   const [gmailConnection, setGmailConnection] = useState<GmailConn>(null)
   const [loading, setLoading] = useState(true)
 
@@ -38,7 +39,7 @@ export default function SettingsPage(): React.JSX.Element {
     const [{ data: p }, { data: fe }, { data: cats }, { data: gmail }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('fixed_expenses').select('*, expense_categories(name, color)').eq('user_id', user.id).order('created_at'),
-      supabase.from('expense_categories').select('id, name, color, type').eq('user_id', user.id).order('sort_order'),
+      supabase.from('expense_categories').select('*').eq('user_id', user.id).order('sort_order'),
       supabase.from('gmail_connections').select('gmail_address, sync_status, last_synced_at, enabled').eq('user_id', user.id).maybeSingle(),
     ])
 
@@ -67,6 +68,7 @@ export default function SettingsPage(): React.JSX.Element {
       </div>
       <ProfileForm profile={profile} userId={userId} onChanged={load} />
       <FixedExpensesManager fixedExpenses={fixedExpenses} categories={categories} userId={userId} onChanged={load} />
+      <CategoryBudgets categories={categories} onChanged={load} />
       <GmailConnectCard connection={gmailConnection} />
       <SyncIntervalCard profile={profile} userId={userId} />
     </div>

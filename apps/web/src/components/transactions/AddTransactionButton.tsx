@@ -4,8 +4,10 @@ import React from 'react'
 
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { createWriteClient } from '@/lib/supabase'
 import { TransactionSchema } from '@tracker/core'
+import { friendlyError } from '@/lib/errors'
 
 interface AddTransactionButtonProps {
   categories: { id: string; name: string; color: string }[]
@@ -42,17 +44,19 @@ export default function AddTransactionButton({ categories, userId, onAdded }: Ad
       return
     }
 
-    const { error: dbError } = await supabase
-      .from('transactions')
-      .insert({ ...result.data, user_id: userId })
-
-    if (dbError) {
-      setError(dbError.message)
-    } else {
+    try {
+      const { error: dbError } = await supabase
+        .from('transactions')
+        .insert({ ...result.data, user_id: userId })
+      if (dbError) throw dbError
       setOpen(false)
+      toast.success('Transaction saved!')
       onAdded?.()
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

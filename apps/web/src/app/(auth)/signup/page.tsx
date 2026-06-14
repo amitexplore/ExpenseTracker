@@ -4,82 +4,66 @@ import React from 'react'
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 
 
 
 export default function SignupPage(): React.JSX.Element {
-  const router = useRouter()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false) // kept for compatibility
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    // Create user via admin API (no email confirmation needed)
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName }),
-    })
-    const data = await res.json()
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName }),
+      })
 
-    if (!res.ok) {
-      setError(data.error)
-      setLoading(false)
-      return
-    }
+      let data: { ok?: boolean; error?: string } = {}
+      try { data = await res.json() } catch { /* non-JSON body */ }
 
-    // Immediately sign in
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) {
-      setError('Account created but sign-in failed: ' + signInError.message)
-      setLoading(false)
-      return
-    }
-    if (!signInData.session) {
-      setError('Account created but no session returned. Please go to Login page.')
-      setLoading(false)
-      return
-    }
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Could not create account. Please try again.')
+      }
 
-    // Hard navigation to ensure cookies are committed before dashboard loads
-    window.location.href = '/dashboard'
+      // Immediately sign in after account creation
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) throw new Error('Account created! Please sign in on the login page.')
+      if (!signInData.session) throw new Error('Account created! Please sign in on the login page.')
+
+      window.location.href = '/dashboard'
+    } catch (err) {
+      setError(err instanceof Error ? err.message : friendlyError(err))
+      setLoading(false)
+    }
   }
 
   async function handleGoogleSignup() {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-      },
-    })
-    if (error) setError(error.message)
-    setLoading(false)
-  }
-
-  if (success) {
-    return (
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
-        <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-brand-600 text-xl">✓</span>
-        </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Check your email</h2>
-        <p className="text-gray-500 text-sm">
-          We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
-        </p>
-      </div>
-    )
+    setError(null)
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+        },
+      })
+      if (oauthError) throw oauthError
+    } catch (err) {
+      setError(friendlyError(err))
+      setLoading(false)
+    }
   }
 
   return (

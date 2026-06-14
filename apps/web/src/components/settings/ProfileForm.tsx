@@ -3,10 +3,12 @@
 import React from 'react'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { createWriteClient } from '@/lib/supabase'
 import type { Profile } from '@tracker/db'
 import { CURRENCY_OPTIONS } from '@tracker/core'
 import { DollarSign, Target } from 'lucide-react'
+import { friendlyError } from '@/lib/errors'
 
 interface ProfileFormProps {
   profile: Profile | null
@@ -17,37 +19,44 @@ interface ProfileFormProps {
 export default function ProfileForm({ profile, userId, onChanged }: ProfileFormProps): React.JSX.Element {
   const supabase = createWriteClient()
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setSuccess(false)
 
-    const form = new FormData(e.currentTarget)
-    const updates = {
-      monthly_salary: parseFloat(form.get('monthly_salary') as string),
-      account_balance_start: parseFloat(form.get('account_balance_start') as string) || 0,
-      current_savings: parseFloat(form.get('current_savings') as string) || 0,
-      target_amount: parseFloat(form.get('target_amount') as string),
-      target_date: (form.get('target_date') as string) || null,
-      currency: form.get('currency') as string,
-    }
+    try {
+      const form = new FormData(e.currentTarget)
 
-    const { error: dbError } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
+      const salary = parseFloat(form.get('monthly_salary') as string)
+      const targetAmount = parseFloat(form.get('target_amount') as string)
+      if (isNaN(salary) || salary < 0) throw new Error('Please enter a valid monthly salary.')
+      if (isNaN(targetAmount) || targetAmount < 0) throw new Error('Please enter a valid savings target.')
 
-    if (dbError) {
-      setError(dbError.message)
-    } else {
-      setSuccess(true)
+      const updates = {
+        monthly_salary: salary,
+        account_balance_start: Math.max(0, parseFloat(form.get('account_balance_start') as string) || 0),
+        current_savings: Math.max(0, parseFloat(form.get('current_savings') as string) || 0),
+        target_amount: targetAmount,
+        target_date: (form.get('target_date') as string) || null,
+        currency: form.get('currency') as string,
+      }
+
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+
+      if (dbError) throw dbError
+
+      toast.success('Profile saved!')
       onChanged?.()
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -162,7 +171,6 @@ export default function ProfileForm({ profile, userId, onChanged }: ProfileFormP
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-        {success && <p className="text-sm text-brand-600 bg-brand-50 px-3 py-2 rounded-lg">Saved successfully!</p>}
 
         <button
           type="submit"

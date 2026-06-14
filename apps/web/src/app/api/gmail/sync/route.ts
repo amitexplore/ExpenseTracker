@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { decrypt, encrypt } from '@/lib/encryption'
 import { parseMultipleEmails, deduplicateTransactions } from '@tracker/core'
 import type { RawEmail } from '@tracker/core'
 
 export async function POST() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createServerSupabaseClient() as any
+  const supabase = (await createServerSupabaseClient()) as any
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -23,75 +24,75 @@ export async function POST() {
     return NextResponse.json({ error: 'No Gmail connection found' }, { status: 400 })
   }
 
-  // Mark syncing
   await supabase
     .from('gmail_connections')
     .update({ sync_status: 'syncing' })
     .eq('id', gmailConn.id)
 
   try {
-    // Refresh the access token if expired
-    let accessToken = gmailConn.access_token
+    // Decrypt tokens before use
+    let accessToken = decrypt(gmailConn.access_token)
+
     if (new Date(gmailConn.token_expiry) <= new Date()) {
-      const refreshed = await refreshGmailToken(gmailConn.refresh_token)
+      const decryptedRefresh = decrypt(gmailConn.refresh_token)
+      const refreshed = await refreshGmailToken(decryptedRefresh)
       if (!refreshed) throw new Error('Failed to refresh Gmail token')
       accessToken = refreshed.access_token
+      // Re-encrypt the new access token before saving
       await supabase
         .from('gmail_connections')
         .update({
-          access_token: refreshed.access_token,
+          access_token: encrypt(refreshed.access_token),
           token_expiry: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
         })
         .eq('id', gmailConn.id)
     }
 
-    // Fetch emails from Gmail API
     const emails = await fetchOrderEmails(accessToken, gmailConn.last_synced_at)
 
-    // Get existing email IDs to avoid duplicates
     const { data: existingTxs } = await supabase
       .from('transactions')
       .select('raw_email_id')
       .eq('user_id', user.id)
       .not('raw_email_id', 'is', null)
 
-    const existingIds = new Set<string>((existingTxs ?? []).map((t: { raw_email_id: string | null }) => t.raw_email_id ?? ''))
+    const existingIds = new Set<string>(
+      (existingTxs ?? []).map((t: { raw_email_id: string | null }) => t.raw_email_id ?? '')
+    )
 
-    // Parse and deduplicate
     const parsed = parseMultipleEmails(emails)
-    const newTxs = deduplicateTransactions(parsed, existingIds)
+    const newTxs  = deduplicateTransactions(parsed, existingIds)
 
     if (newTxs.length > 0) {
-      // Get category IDs for merchants
       const { data: categories } = await supabase
         .from('expense_categories')
         .select('id, name')
         .eq('user_id', user.id)
 
-      const categoryMap = new Map((categories ?? []).map((c: { name: string; id: string }) => [c.name.toLowerCase(), c.id]))
+      const categoryMap = new Map(
+        (categories ?? []).map((c: { name: string; id: string }) => [c.name.toLowerCase(), c.id])
+      )
 
       const inserts = newTxs.map((tx) => ({
-        user_id: user.id,
-        amount: tx.amount,
-        date: tx.date.toISOString().split('T')[0],
-        merchant: tx.merchant,
-        description: tx.description,
-        source: 'gmail' as const,
+        user_id:      user.id,
+        amount:       tx.amount,
+        date:         tx.date.toISOString().split('T')[0],
+        merchant:     tx.merchant,
+        description:  tx.description,
+        source:       'gmail' as const,
         raw_email_id: tx.rawEmailId,
-        is_income: false,
-        category_id: categoryMap.get(tx.merchant.toLowerCase()) ?? null,
+        is_income:    false,
+        category_id:  categoryMap.get(tx.merchant.toLowerCase()) ?? null,
       }))
 
       await supabase.from('transactions').insert(inserts)
     }
 
-    // Update sync status
     await supabase
       .from('gmail_connections')
       .update({ sync_status: 'idle', last_synced_at: new Date().toISOString(), error_message: null })
       .eq('id', gmailConn.id)
 
-    // Trigger snapshot recomputation for affected months
     const affectedMonths = new Set(
       newTxs.map((tx) => `${tx.date.getFullYear()}-${tx.date.getMonth() + 1}`)
     )
@@ -99,19 +100,23 @@ export async function POST() {
       const [y, m] = ym.split('-').map(Number)
       await supabase.rpc('recompute_monthly_snapshot', {
         p_user_id: user.id,
-        p_year: y,
-        p_month: m,
+        p_year:    y,
+        p_month:   m,
       })
     }
 
     return NextResponse.json({ imported: newTxs.length })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    // Log internally but never leak raw error details to the client
+    console.error('[gmail/sync]', err)
+    const safe = err instanceof Error && err.message.startsWith('Failed')
+      ? err.message
+      : 'Sync failed — please reconnect Gmail and try again'
     await supabase
       .from('gmail_connections')
-      .update({ sync_status: 'error', error_message: message })
+      .update({ sync_status: 'error', error_message: safe })
       .eq('id', gmailConn.id)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: safe }, { status: 500 })
   }
 }
 
@@ -120,10 +125,10 @@ async function refreshGmailToken(refreshToken: string) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_id:     process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
       refresh_token: refreshToken,
-      grant_type: 'refresh_token',
+      grant_type:    'refresh_token',
     }),
   })
   if (!res.ok) return null
@@ -163,11 +168,10 @@ async function fetchOrderEmails(accessToken: string, since: string | null): Prom
       const msgData = await msgRes.json()
 
       const headers: { name: string; value: string }[] = msgData.payload?.headers ?? []
-      const from = headers.find((h) => h.name === 'From')?.value ?? ''
+      const from    = headers.find((h) => h.name === 'From')?.value ?? ''
       const subject = headers.find((h) => h.name === 'Subject')?.value ?? ''
-      const date = headers.find((h) => h.name === 'Date')?.value ?? new Date().toISOString()
+      const date    = headers.find((h) => h.name === 'Date')?.value ?? new Date().toISOString()
 
-      // Extract body text
       let body = ''
       const parts = msgData.payload?.parts ?? [msgData.payload]
       for (const part of parts) {
@@ -184,7 +188,7 @@ async function fetchOrderEmails(accessToken: string, since: string | null): Prom
 
       emails.push({ id: msg.id, from, subject, body, date })
     } catch {
-      // Skip malformed messages
+      // Skip malformed messages without leaking details
     }
   }
 

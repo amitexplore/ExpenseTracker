@@ -71,6 +71,7 @@ export interface Database {
           icon: string | null
           is_system: boolean
           sort_order: number
+          monthly_budget: number | null
           created_at: string
         }
         Insert: {
@@ -82,6 +83,7 @@ export interface Database {
           icon?: string | null
           is_system?: boolean
           sort_order?: number
+          monthly_budget?: number | null
         }
         Update: {
           id?: string
@@ -92,6 +94,7 @@ export interface Database {
           icon?: string | null
           is_system?: boolean
           sort_order?: number
+          monthly_budget?: number | null
         }
       }
       fixed_expenses: {
@@ -249,6 +252,40 @@ export interface Database {
           computed_at?: string
         }
       }
+      savings_goals: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          target_amount: number
+          target_date: string | null
+          current_amount: number
+          color: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          target_amount: number
+          target_date?: string | null
+          current_amount?: number
+          color?: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          current_amount?: number
+          color?: string
+          sort_order?: number
+        }
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -267,3 +304,4 @@ export type FixedExpense = Database['public']['Tables']['fixed_expenses']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 export type GmailConnection = Database['public']['Tables']['gmail_connections']['Row']
 export type MonthlySnapshot = Database['public']['Tables']['monthly_snapshots']['Row']
+export type SavingsGoal = Database['public']['Tables']['savings_goals']['Row']

@@ -3,10 +3,12 @@
 import React from 'react'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { formatCurrency } from '@tracker/core'
 import { format } from 'date-fns'
 import { Mail, PenLine, Smartphone, Pencil, Trash2, X, Check } from 'lucide-react'
 import { createWriteClient } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import type { Transaction } from '@tracker/db'
 
 type TransactionWithCategory = Transaction & {
@@ -107,12 +109,19 @@ export default function TransactionList({ transactions, currency, onChanged }: T
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function handleDelete(tx: TransactionWithCategory) {
+    if (!confirm(`Delete "${tx.merchant || 'this transaction'}"?`)) return
     setDeletingId(tx.id)
-    const supabase = createWriteClient()
-    await supabase.from('transactions').delete().eq('id', tx.id)
-    // Snapshot recomputed automatically by DB trigger
-    setDeletingId(null)
-    onChanged?.()
+    try {
+      const supabase = createWriteClient()
+      const { error } = await supabase.from('transactions').delete().eq('id', tx.id)
+      if (error) throw error
+      toast.success('Transaction deleted.')
+      onChanged?.()
+    } catch (err) {
+      toast.error(friendlyError(err))
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   if (transactions.length === 0) {

@@ -3,9 +3,11 @@
 import React from 'react'
 
 import { useState } from 'react'
-import { createClient, createWriteClient } from '@/lib/supabase'
+import { createWriteClient } from '@/lib/supabase'
 import { Plus, Trash2, Home } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatINR } from '@tracker/core'
+import { friendlyError } from '@/lib/errors'
 import type { FixedExpense } from '@tracker/db'
 
 type FixedExpenseWithCategory = FixedExpense & {
@@ -34,29 +36,42 @@ export default function FixedExpensesManager({
     setLoading(true)
     setError(null)
 
-    const form = new FormData(e.currentTarget)
-    const { error: dbError } = await supabase.from('fixed_expenses').insert({
-      user_id: userId,
-      category_id: form.get('category_id') as string,
-      name: form.get('name') as string,
-      amount: parseFloat(form.get('amount') as string),
-      frequency: form.get('frequency') as 'monthly' | 'yearly' | 'one_time',
-      active_from: form.get('active_from') as string,
-      active_to: (form.get('active_to') as string) || null,
-    })
+    try {
+      const form = new FormData(e.currentTarget)
+      const amount = parseFloat(form.get('amount') as string)
+      if (isNaN(amount) || amount <= 0) throw new Error('Amount must be a positive number.')
 
-    if (dbError) {
-      setError(dbError.message)
-    } else {
+      const { error: dbError } = await supabase.from('fixed_expenses').insert({
+        user_id: userId,
+        category_id: form.get('category_id') as string,
+        name: form.get('name') as string,
+        amount,
+        frequency: form.get('frequency') as 'monthly' | 'yearly' | 'one_time',
+        active_from: form.get('active_from') as string,
+        active_to: (form.get('active_to') as string) || null,
+      })
+      if (dbError) throw dbError
+
       setShowForm(false)
+      toast.success('Fixed expense added!')
       onChanged?.()
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function handleDelete(id: string) {
-    await supabase.from('fixed_expenses').delete().eq('id', id)
-    onChanged?.()
+    if (!confirm('Remove this fixed expense?')) return
+    try {
+      const { error } = await supabase.from('fixed_expenses').delete().eq('id', id)
+      if (error) throw error
+      toast.success('Fixed expense removed.')
+      onChanged?.()
+    } catch (err) {
+      toast.error(friendlyError(err))
+    }
   }
 
   return (

@@ -4,11 +4,10 @@ import React from 'react'
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 
 export default function LoginPage(): React.JSX.Element {
-  const router = useRouter()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,28 +19,33 @@ export default function LoginPage(): React.JSX.Element {
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-    } else if (!data.session) {
-      setError('Sign-in succeeded but no session. Please try again.')
-    } else {
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) throw signInError
+      if (!data.session) throw new Error('No session returned. Please try again.')
       window.location.href = '/dashboard'
+    } catch (err) {
+      setError(friendlyError(err))
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function handleGoogleLogin() {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/confirm`,
-        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-      },
-    })
-    if (error) setError(error.message)
-    setLoading(false)
+    setError(null)
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/confirm`,
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+        },
+      })
+      if (oauthError) throw oauthError
+    } catch (err) {
+      setError(friendlyError(err))
+      setLoading(false)
+    }
   }
 
   return (
