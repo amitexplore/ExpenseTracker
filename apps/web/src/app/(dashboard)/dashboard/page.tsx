@@ -61,10 +61,13 @@ function buildMonthData(
         return s
       }, 0)
 
-    // Future month with no snapshot: only show obligations
+    // Future month with no snapshot: project salary + fixed, chain from running balance
     const isFuture = year > currentYear || (year === currentYear && month > currentMonth)
     if (isFuture && !snap) {
-      return { month, label: MONTH_SHORT[i], starting: null, salary: 0, deposits: 0, fixed: fixed > 0 ? fixed : 0, variable: 0, end: null, hasSnapshot: false }
+      const starting = runningBalance ?? accountBalanceStart
+      const end = starting + salary - fixed
+      runningBalance = end
+      return { month, label: MONTH_SHORT[i], starting, salary, deposits: 0, fixed, variable: 0, end, hasSnapshot: false }
     }
 
     // Confirmed snapshot from DB
@@ -255,7 +258,7 @@ export default function DashboardPage(): React.JSX.Element {
         currentSavings={totalSavings}
         targetDate={profile?.target_date}
       />
-      <MonthlyTrendChart monthData={monthData} year={year} />
+      <MonthlyTrendChart monthData={monthData} year={year} currency={currency} />
       <YearlyGrid
         monthData={monthData}
         year={year}
