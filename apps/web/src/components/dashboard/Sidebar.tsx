@@ -55,18 +55,18 @@ export default function Sidebar({ user, profile }: SidebarProps): React.JSX.Elem
     >
       {/* Logo */}
       <div className="p-6" style={{ borderBottom: `1px solid ${s.border}` }}>
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity group-hover:opacity-80"
             style={{ background: 'rgba(255,255,255,0.15)' }}
           >
             <TrendingUp className="w-5 h-5" style={{ color: s.textMuted }} />
           </div>
           <div>
-            <p className="text-sm font-bold" style={{ color: s.text }}>ExpenseTracker</p>
+            <p className="text-sm font-bold transition-opacity group-hover:opacity-80" style={{ color: s.text }}>ExpenseTracker</p>
             <p className="text-xs" style={{ color: s.textDim }}>Personal Finance</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
